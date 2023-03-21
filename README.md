@@ -1,11 +1,9 @@
 # Benchmarking Differential Privacy Python Tools 
 ------------------------
 
-This repository is the implementation of the benchmarked differential privacy python libraries and frameworks. 
+This repository contains the implementation of benchmarked differential privacy Python libraries and frameworks. The libraries and frameworks are evaluated based on utility and execution time.
 
 ![Benchamarked tools](images/benchmarked_tools.png)
-
-The libraries and frameworks are evaluated on utility and execution time. 
 
 ## Sample Experimental Results 
 -----------------------
@@ -15,13 +13,12 @@ The libraries and frameworks are evaluated on utility and execution time.
 
 ![Utility Analysis](images/sum_utility_analysis.png)
 
-- Execution time of the tools – supporting the distributed environment, experimented on synthetic datasets of varying sizes.
-
+- Execution time of the tools in the Spark environment, experimented on synthetic datasets of varying sizes of upto 1 billion data points.
 
 ![Execution Time](images/spark_execution_time.png)
 
 
-## Executing Queries using the Libraries/Frameworks on Synthetic Data 
+## How to Execute Queries Using the Libraries/Frameworks on Synthetic Data
 ------------------------
 
 ```bash
