@@ -1,0 +1,8 @@
+.DS_Store
+
+aws
+notebooks_final
+backups
+benchmark_libraries
+outputs
+.ipynb_checkpoints/
