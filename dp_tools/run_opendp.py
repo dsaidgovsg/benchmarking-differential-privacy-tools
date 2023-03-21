@@ -15,24 +15,25 @@ from opendp.transformations import make_count, \
     make_bounded_sum, \
     make_sized_bounded_mean, \
     make_sized_bounded_variance
-
-from commons.stats_vals import OPENDP
-from commons.stats_vals import BASE_PATH, EPSILON_VALUES, MEAN, VARIANCE, COUNT, SUM
-from commons.utils import save_synthetic_data_query_ouput, update_epsilon_values
-
-
 from opendp.mod import enable_features
+
+from commons.stats_vals import OPENDP, \
+    DEFAULT_COLUMN_NAME, \
+    MEAN, \
+    VARIANCE, \
+    COUNT, \
+    SUM
+from commons.utils import save_synthetic_data_query_ouput
+
 enable_features('contrib')
 enable_features("floating-point")
 
-#-----------#
-# Constants #
-#-----------#
-LIB_NAME = OPENDP
 
-
-def run_query(query, epsilon_values, per_epsilon_iterations, data_path, output_folder):
-    """"""
+def run_query(query: str,
+              epsilon_values: list,
+              per_epsilon_iterations: int,
+              data_path: str,
+              output_folder: str):
 
     #------------#
     # DATASETS   #
@@ -46,7 +47,7 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, output_f
             continue
 
         df = pd.read_csv(data_path + filename)
-        data = df[column_name]
+        data = df[DEFAULT_COLUMN_NAME]
         data_list = data.tolist()
 
         num_rows = data.count()
@@ -185,45 +186,5 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, output_f
                 eps_relative_errors.append(error/abs(true_value))
                 eps_scaled_errors.append(error/num_rows)
 
-            save_synthetic_data_query_ouput(LIB_NAME, query, epsilon, filename, eps_errors,
+            save_synthetic_data_query_ouput(OPENDP, query, epsilon, filename, eps_errors,
                                             eps_relative_errors, eps_scaled_errors, eps_time_used, eps_memory_used, output_folder)
-
-
-if __name__ == "__main__":
-
-    #----------------#
-    # Configurations #
-    #----------------#
-    experimental_query = MEAN  # {MEAN, VARIANCE, COUNT, SUM}
-
-    dataset_size = 1000  # {}
-
-    # path to the folder containing CSVs of `dataset_size` size
-    dataset_path = BASE_PATH + f"datasets/synthetic_data/size_{dataset_size}/"
-
-    # for synthetic datasets the column name is fixed (will change for real-life datasets)
-    column_name = "values"
-
-    # number of iterations to run for each epsilon value
-    # value should be in [100, 500]
-    per_epsilon_iterations = 100  # for the testing purpose low value is set
-
-    epsilon_values = EPSILON_VALUES
-
-    # get the epsilon values to resume with
-    output_file = f"outputs/synthetic/{LIB_NAME.lower()}/size_{dataset_size}/{experimental_query}.csv"
-    if os.path.exists(output_file):
-        epsilon_values = update_epsilon_values(output_file)
-
-    # test if all the epsilon values have NOT been experimented with
-    if epsilon_values != -1:
-
-        print("Library: ", LIB_NAME)
-        print("Query: ", experimental_query)
-        print("Iterations: ", per_epsilon_iterations)
-        print("Dataset size: ", dataset_size)
-        print("Dataset path: ", dataset_path)
-        print("Epsilon Values: ", epsilon_values)
-
-        run_opendp_query(experimental_query, epsilon_values,
-                         per_epsilon_iterations, dataset_path, column_name)

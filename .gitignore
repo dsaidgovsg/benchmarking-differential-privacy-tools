@@ -1,8 +1,9 @@
 .DS_Store
+.ipynb_checkpoints/
 
 aws
 notebooks_final
 backups
 benchmark_libraries
 outputs
-.ipynb_checkpoints/
+spark-warehouse

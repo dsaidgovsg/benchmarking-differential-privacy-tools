@@ -14,13 +14,14 @@ from commons.stats_vals import DIFFPRIVLIB, \
     VARIANCE, \
     COUNT, \
     SUM
-
 from commons.utils import save_synthetic_data_query_ouput
 
 
-def run_query(query, epsilon_values, per_epsilon_iterations, data_path, output_folder):
-    """
-    """
+def run_query(query: str,
+              epsilon_values: list,
+              per_epsilon_iterations: int,
+              data_path: str,
+              output_folder: str):
 
     #------------#
     # Datasets   #
@@ -111,32 +112,3 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, output_f
 
             save_synthetic_data_query_ouput(DIFFPRIVLIB, query, epsilon, filename, eps_errors,
                                             eps_relative_errors, eps_scaled_errors, eps_time_used, eps_memory_used, output_folder)
-
-
-# if __name__ == "__main__":
-
-#     #----------------#
-#     # Configurations #
-#     #----------------#
-#     evaluate_query = SUM
-#     evaluate_size = 1000
-
-#     # assert evaluate_query in [COUNT, SUM, MEAN, VARIANCE]
-#     # assert evaluate_size in ["1k", "10k", ]
-
-#     # number of iterations to run for each epsilon value
-#     per_epsilon_iterations = 100
-#     epsilon_values = EPSILON_VALUES
-
-#     # path to the folder containing CSVs of `dataset_size` size
-#     dataset_path = BASE_PATH + f"data/synthetic_data/size_{evaluate_size}/"
-
-#     print("Library: ", DIFFPRIVLIB)
-#     print("Query: ", evaluate_query)
-#     print("Iterations: ", per_epsilon_iterations)
-#     print("Dataset size: ", evaluate_size)
-#     print("Dataset path: ", dataset_path)
-#     print("Epsilon Values: ", epsilon_values)
-
-#     run_diffprivlib_query(evaluate_query, epsilon_values,
-#                           per_epsilon_iterations, dataset_path)

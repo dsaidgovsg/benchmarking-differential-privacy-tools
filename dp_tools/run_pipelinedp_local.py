@@ -1,38 +1,31 @@
 """Using Google's and OpenMinded's PipelineDP library to execute differentially private queries"""
 
-from commons.utils import save_synthetic_data_query_ouput, update_epsilon_values
 import os
-import sys
 import time
 import psutil
 import pandas as pd
 from tqdm import tqdm
 
 import pipeline_dp
-from commons.stats_vals import PIPELINEDP
-from commons.stats_vals import BASE_PATH, \
-    EPSILON_VALUES, MEAN, VARIANCE, COUNT, SUM
 
-# CHANGES:
-# remove private_id
-# contribution_bounds_already_enforced
-# privacy_id_extractor
-# public_partitions = [1]
-# pipeline_dp.NaiveBudgetAccountant(total_epsilon=epsilon, total_delta=0
-# contribution_bounds_already_enforced=True
-
-#-----------#
-# Constants #
-#-----------#
-LIB_NAME = PIPELINEDP
+from commons.stats_vals import PIPELINEDP_LOCAL, \
+    DEFAULT_COLUMN_NAME, \
+    MEAN, \
+    VARIANCE, \
+    COUNT, \
+    SUM
+from commons.utils import save_synthetic_data_query_ouput
 
 
-def compute_dp_metric(rows, epsilon, metric, column_name, backend, min_val=None, max_val=None):
-    """"""
+def _compute_dp_metric(rows: list,
+                       epsilon: float,
+                       metric: pipeline_dp.Metrics,
+                       backend: pipeline_dp.LocalBackend,
+                       min_val: float = None,
+                       max_val: float = None):
+
     budget_accountant = pipeline_dp.NaiveBudgetAccountant(
         total_epsilon=epsilon, total_delta=0)
-
-    # explain_computation_report = pipeline_dp.ExplainComputationReport()
 
     dp_engine = pipeline_dp.DPEngine(budget_accountant, backend)
 
@@ -49,7 +42,7 @@ def compute_dp_metric(rows, epsilon, metric, column_name, backend, min_val=None,
     data_extractors = pipeline_dp.DataExtractors(
         # privacy_id_extractor=lambda row: row["id"],
         partition_extractor=lambda _: 1,
-        value_extractor=lambda row: row[column_name])
+        value_extractor=lambda row: row[DEFAULT_COLUMN_NAME])
 
     public_partitions = [1]
     dp_result = dp_engine.aggregate(
@@ -65,13 +58,13 @@ def compute_dp_metric(rows, epsilon, metric, column_name, backend, min_val=None,
     return list(dp_result)
 
 
-def run_query(query, epsilon_values, per_epsilon_iterations, data_path, limiting_time_sec, output_folder):
-    """
-    """
+def run_query(query: str,
+              epsilon_values: list,
+              per_epsilon_iterations: int,
+              data_path: str,
+              output_folder: str):
 
     backend = pipeline_dp.LocalBackend()
-
-    count_exceeded_limit = 0
 
     #------------#
     # Datasets   #
@@ -85,12 +78,9 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, limiting
             continue
 
         df = pd.read_csv(data_path + filename)
-        data = df[column_name]
+        data = df[DEFAULT_COLUMN_NAME]
         num_rows = data.count()
 
-        # library specific setup
-        # Reference: https://pipelinedp.io/key-definitions/
-        # df['id'] = range(1, len(df) + 1)
         rows = [index_row[1] for index_row in df.iterrows()]
 
         #----------#
@@ -98,7 +88,6 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, limiting
         #----------#
         print("epsilon_values", epsilon_values)
         for epsilon in epsilon_values:
-            # print("****----->: ", epsilon)
             eps_time_used = []
             eps_memory_used = []
             eps_errors = []
@@ -117,8 +106,8 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, limiting
                 #----------------------------------------#
                 if query == COUNT:
                     begin_time = time.time()
-                    dp_result = compute_dp_metric(
-                        rows, epsilon, pipeline_dp.Metrics.COUNT, column_name, backend)
+                    dp_result = _compute_dp_metric(
+                        rows, epsilon, pipeline_dp.Metrics.COUNT, backend)
                 else:
                     min_value = data.min()
                     max_value = data.max()
@@ -126,16 +115,16 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, limiting
                     if query == MEAN:
                         begin_time = time.time()
                         print("epsilon:", epsilon)
-                        dp_result = compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.MEAN,
-                                                      column_name, backend, min_value, max_value)
+                        dp_result = _compute_dp_metric(
+                            rows, epsilon, pipeline_dp.Metrics.MEAN, backend, min_value, max_value)
                     elif query == SUM:
                         begin_time = time.time()
-                        dp_result = compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.SUM,
-                                                      column_name, backend, min_value, max_value)
+                        dp_result = _compute_dp_metric(
+                            rows, epsilon, pipeline_dp.Metrics.SUM, backend, min_value, max_value)
                     elif query == VARIANCE:
                         begin_time = time.time()
-                        dp_result = compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.VARIANCE,
-                                                      column_name, backend, min_value, max_value)
+                        dp_result = _compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.VARIANCE,
+                                                       backend, min_value, max_value)
 
                 # rdd action
                 private_value = dp_result[0][1][0]
@@ -168,56 +157,5 @@ def run_query(query, epsilon_values, per_epsilon_iterations, data_path, limiting
                 eps_relative_errors.append(error/abs(true_value))
                 eps_scaled_errors.append(error/num_rows)
 
-            mean_time_used = save_synthetic_data_query_ouput(LIB_NAME, query, epsilon, filename, eps_errors,
-                                                             eps_relative_errors, eps_scaled_errors, eps_time_used, eps_memory_used, output_folder)
-
-            if mean_time_used >= limiting_time_sec:
-                if count_exceeded_limit >= 5:
-                    print(
-                        f"{LIB_NAME} | {filename}: Terminated process!! Last executed epsilon {epsilon} for {query} query.")
-                    sys.exit()
-                else:
-                    count_exceeded_limit += 1
-
-
-if __name__ == "__main__":
-
-    #----------------#
-    # Configurations #
-    #----------------#
-
-    limiting_time_sec = 45
-
-    experimental_query = SUM  # {VARIANCE, MEAN, SUM, COUNT}
-
-    dataset_size = 1000
-
-    # path to the folder containing CSVs of `dataset_size` size
-    dataset_path = BASE_PATH + f"datasets/synthetic_data/size_{dataset_size}/"
-
-    # for synthetic datasets the column name is fixed (will change for real-life datasets)
-    column_name = "values"
-
-    # number of iterations to run for each epsilon value
-    # value should be in [100, 500]
-    per_epsilon_iterations = 50  # for the testing purpose low value is set
-
-    epsilon_values = EPSILON_VALUES
-
-    # get the epsilon values to resume with
-    # output_file = f"outputs/synthetic/{LIB_NAME.lower()}/size_{dataset_size}/{experimental_query}.csv"
-    # if os.path.exists(output_file):
-    #     epsilon_values = update_epsilon_values(output_file)
-
-    # test if all the epsilon values have NOT been experimented with
-    if epsilon_values != -1:
-
-        print("Library: ", LIB_NAME, " on Local")
-        print("Query: ", experimental_query)
-        print("Iterations: ", per_epsilon_iterations)
-        print("Dataset size: ", dataset_size)
-        print("Dataset path: ", dataset_path)
-        print("Epsilon Values: ", epsilon_values)
-
-        run_pipelinedp_query(experimental_query, epsilon_values,
-                             per_epsilon_iterations, dataset_path, column_name, limiting_time_sec)
+            save_synthetic_data_query_ouput(PIPELINEDP_LOCAL, query, epsilon, filename, eps_errors,
+                                            eps_relative_errors, eps_scaled_errors, eps_time_used, eps_memory_used, output_folder)

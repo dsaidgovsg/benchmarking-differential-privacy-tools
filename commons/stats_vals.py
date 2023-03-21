@@ -1,3 +1,6 @@
+"""Constants"""
+
+# libraries and frameworks
 TUMULT_ANALYTICS = "tmlt_ana"
 OPENDP = "opendp"
 DIFFPRIVLIB = "diffprivlib"
@@ -11,8 +14,8 @@ SUM = "sum"
 VARIANCE = "variance"
 
 VALID_QUERIES = [COUNT, SUM, MEAN, VARIANCE]
-
 VALID_SIZES = ["1k", "10k", "100k", "1M", "10M", "100M", "1B"]
+
 SIZES_DICT = {
     "1k": 1000,
     "10k": 10_000,
@@ -23,8 +26,7 @@ SIZES_DICT = {
     "1B": 1000_000_000
 }
 
-BASE_PATH = "/Users/anshusingh/DPPCC/whitespace/differential_privacy/"
-
+# epsilon values to experiment
 EPSILON_VALUES = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
                   0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -32,5 +34,5 @@ EPSILON_VALUES = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,
 # for synthetic datasets the column name is fixed
 DEFAULT_COLUMN_NAME = "values"
 
-S3_DATA_BUCKET = "dp-experiments-data-public"
-S3_OUTPUT_BUCKET = "dp-experiments-outputs"
+# S3_DATA_BUCKET = "dp-experiments-data-public"
+# S3_OUTPUT_BUCKET = "dp-experiments-outputs"
