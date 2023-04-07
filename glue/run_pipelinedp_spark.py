@@ -4,7 +4,6 @@ import sys
 import time
 from enum import Enum
 
-import boto3
 import pipeline_dp
 from awsglue.utils import getResolvedOptions
 from pyspark.sql import SparkSession
@@ -139,8 +138,6 @@ if __name__ == "__main__":
     #----------------#
     # Configurations #
     #----------------#
-    s3 = boto3.resource('s3')
-
     args = getResolvedOptions(sys.argv,
                               ['column_name',
                                'epsilon',
