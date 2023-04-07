@@ -34,7 +34,7 @@ python3 run_tool.py --size 100k --query VARIANCE  --tool opendp
 
 
 ## Medium Articles
-This git repository is also referenced by our four-part differential privacy articles in [DSAID Medium](https://medium.com/dsaid-govtech):
+This git repository is also referenced by our four-part differential privacy articles on [DSAID Medium](https://medium.com/dsaid-govtech):
 
 - Part 1: `Sharing Data with Differential Privacy: A Primer` — A beginner’s guide to understanding the fundamental concepts of differential privacy with simplified mathematical interpretation.
 - Part 2: `Practitioners’ Guide to Accessing Emerging Differential Privacy Tools` — Explore the emerging differential privacy tools developed by prominent researchers and institutions, with practical guidance on their adoption for real-world use cases.
