@@ -24,18 +24,14 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
     """
     bucket_name, object_key = s3_file_path.replace("s3://", "").split("/", 1)
 
-    spark = SparkSession.builder\
-        .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")\
-        .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")\
-        .config("spark.sql.warehouse.dir", f"s3://{bucket_name}/glue/tumult_ana/")\
-        .getOrCreate()
+    spark = SparkSession.builder.getOrCreate()
 
     #------------#
     # Dataset    #
     #------------#
 
     spark_df = spark.read.csv(
-        f"s3a://{bucket_name}/{object_key}", header=True, inferSchema=True)
+        f"s3://{bucket_name}/{object_key}", header=True, inferSchema=True)
     num_rows = spark_df.count()
     print("Total number of rows in dataset: ", num_rows)
 
@@ -78,7 +74,7 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
     eps_time_used = time.time() - begin_time
 
     print("Dataset query result: ", private_value)
-    print("Time used: ", eps_time_used)
+    print("Time taken (s): ", eps_time_used)
 
     spark.stop()
 
