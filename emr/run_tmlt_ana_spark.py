@@ -1,25 +1,17 @@
 """Using Tumult Analytics by Tumult Labs to execute differentially private queries"""
 
+import getopt
 import sys
 import time
-from enum import Enum
 
-from awsglue.utils import getResolvedOptions
 from pyspark.sql import SparkSession
 from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.session import Session
 
 
-class Query(Enum):
-    COUNT = "COUNT"
-    MEAN = "MEAN"
-    SUM = "SUM"
-    VARIANCE = "VARIANCE"
-
-
+# function to create a tumult analytics session with a DataFrame
 def _create_tmlt_analytics_session(source_id, df):
-    # function to create a tumult analytics session with a DataFrame
     return Session.from_dataframe(
         privacy_budget=PureDPBudget(epsilon=float('inf')),
         source_id=source_id,
@@ -54,7 +46,7 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
     #----------------------------------------#
     # Compute differentially private queries #
     #----------------------------------------#
-    if query == Query.COUNT.value:
+    if query == "COUNT":
         begin_time = time.time()
         query_build = QueryBuilder(source_id).count()
     else:
@@ -63,15 +55,15 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
         max_value = spark_df.agg(
             {column_name: "max"}).first()[0]
 
-        if query == Query.MEAN.value:
+        if query == "MEAN":
             begin_time = time.time()
             query_build = QueryBuilder(source_id).average(
                 column_name, low=min_value, high=max_value)
-        elif query == Query.SUM.value:
+        elif query == "SUM":
             begin_time = time.time()
             query_build = QueryBuilder(source_id).sum(
                 column_name, low=min_value, high=max_value)
-        elif query == Query.VARIANCE.value:
+        elif query == "VARIANCE":
             begin_time = time.time()
             query_build = QueryBuilder(source_id).variance(
                 column_name, low=min_value, high=max_value)
@@ -86,7 +78,7 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
     eps_time_used = time.time() - begin_time
 
     print("Dataset query result: ", private_value)
-    print("Time taken (s): ", eps_time_used)
+    print("Time used: ", eps_time_used)
 
     spark.stop()
 
@@ -97,23 +89,27 @@ if __name__ == "__main__":
     # Configurations #
     #----------------#
 
-    args = getResolvedOptions(sys.argv,
-                              ['column_name',
-                               'epsilon',
-                               's3_file_path',
-                               'query',
-                               'source_id'
-                               ])
+    argv = sys.argv[1:]
+
+    try:
+        opts, args = getopt.getopt(
+            argv, "c:e:i:f:q:", ["column =", "epsilon =", "id =", "file =", "query ="])
+    except:
+        print("Invalid inputs")
+        exit(1)
 
     # retrieve parameters
-    column_name = args['column_name']
-    epsilon = int(args['epsilon'])
-    s3_file_path = args['s3_file_path']
-    query = args['query']  # {MEAN, VARIANCE, COUNT, SUM}
-    source_id = args['source_id']  # tumult analytics source_id
-
-    # path to the data in the S3
-    s3_dataset_path = s3_file_path
+    for opt, arg in opts:
+        if opt in ["-c", "--column"]:
+            column_name = arg
+        elif opt in ["-e", "--epsilon"]:
+            epsilon = float(arg)
+        elif opt in ["-i", "--id"]:
+            source_id = arg
+        elif opt in ["-f", "--file"]:
+            s3_file_path = arg
+        elif opt in ["-q", "--query"]:
+            query = arg  # {MEAN, VARIANCE, COUNT, SUM}
 
     print("Source ID: ", source_id)
     print("Query: ", query)
