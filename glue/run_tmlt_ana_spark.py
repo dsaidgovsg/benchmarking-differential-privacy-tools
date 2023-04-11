@@ -6,6 +6,7 @@ from enum import Enum
 
 from awsglue.utils import getResolvedOptions
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import rand
 from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.session import Session
@@ -27,30 +28,7 @@ def _create_tmlt_analytics_session(source_id, df):
     )
 
 
-def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_id):
-    """
-    """
-    bucket_name, object_key = s3_file_path.replace("s3://", "").split("/", 1)
-
-    spark = SparkSession.builder\
-        .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")\
-        .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")\
-        .config("spark.sql.warehouse.dir", f"s3://{bucket_name}/glue/tumult_ana/")\
-        .getOrCreate()
-
-    #------------#
-    # Dataset    #
-    #------------#
-
-    spark_df = spark.read.csv(
-        f"s3a://{bucket_name}/{object_key}", header=True, inferSchema=True)
-    num_rows = spark_df.count()
-    print("Total number of rows in dataset: ", num_rows)
-
-    # session builder for tumult analytics
-    session = _create_tmlt_analytics_session(
-        source_id, spark_df)
-
+def _decide_query(spark_df, session, query, epsilon):
     #----------------------------------------#
     # Compute differentially private queries #
     #----------------------------------------#
@@ -85,8 +63,51 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
     # compute execution time
     eps_time_used = time.time() - begin_time
 
-    print("Dataset query result: ", private_value)
-    print("Time taken (s): ", eps_time_used)
+    return private_value, eps_time_used
+
+
+def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_id):
+    """
+    """
+    bucket_name, object_key = s3_file_path.replace("s3://", "").split("/", 1)
+
+    spark = SparkSession.builder\
+        .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")\
+        .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")\
+        .config("spark.sql.warehouse.dir", f"s3://{bucket_name}/glue/tumult_ana/")\
+        .getOrCreate()
+
+    #------------#
+    # Dataset    #
+    #------------#
+
+    spark_df = spark.read.csv(
+        f"s3a://{bucket_name}/{object_key}", header=True, inferSchema=True)
+    num_rows = spark_df.count()
+    print("Total number of rows in dataset: ", num_rows)
+
+    # session builder for tumult analytics
+    session = _create_tmlt_analytics_session(
+        source_id, spark_df)
+
+    raw_private_value, raw_eps_time_used = _decide_query(
+        spark_df, session, query, epsilon)
+
+    print("Dataset query result: ", raw_private_value)
+    print("Time taken (s): ", raw_eps_time_used)
+
+    snipped_df = spark_df.orderBy(rand()).limit(
+        spark_df.count()-1).exceptAll(spark_df.orderBy(rand()).limit(1))
+
+    print("Dropped a row, current total number of rows in snipped dataset: ",
+          snipped_df.count())
+    print("Running differential privacy on snipped dataset...")
+
+    snipped_private_value, snipped_eps_time_used = _decide_query(
+        snipped_df, session, query, epsilon)
+
+    print("Snipped dataset query result: ", snipped_private_value)
+    print("Time taken (s): ", snipped_eps_time_used)
 
     spark.stop()
 
