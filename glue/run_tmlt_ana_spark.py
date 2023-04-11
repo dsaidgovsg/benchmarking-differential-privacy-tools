@@ -6,7 +6,7 @@ from enum import Enum
 
 from awsglue.utils import getResolvedOptions
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import rand
+from pyspark.sql.functions import mean, rand
 from tmlt.analytics.privacy_budget import PureDPBudget
 from tmlt.analytics.query_builder import QueryBuilder
 from tmlt.analytics.session import Session
@@ -28,7 +28,7 @@ def _create_tmlt_analytics_session(source_id, df):
     )
 
 
-def _decide_query(spark_df, session, query, epsilon):
+def _decide_query(spark_df, session, query, epsilon, column_name):
     #----------------------------------------#
     # Compute differentially private queries #
     #----------------------------------------#
@@ -83,28 +83,34 @@ def run_tmlt_analytics_query(query, epsilon, s3_file_path, column_name, source_i
 
     spark_df = spark.read.csv(
         f"s3a://{bucket_name}/{object_key}", header=True, inferSchema=True)
-    num_rows = spark_df.count()
-    print("Total number of rows in dataset: ", num_rows)
+
+    print("Total number of rows in dataset: ", spark_df.count())
+    print("True mean value: ", spark_df.select(
+        mean(column_name)).collect()[0][0])
 
     # session builder for tumult analytics
     session = _create_tmlt_analytics_session(
         source_id, spark_df)
 
     raw_private_value, raw_eps_time_used = _decide_query(
-        spark_df, session, query, epsilon)
+        spark_df, session, query, epsilon, column_name)
 
     print("Dataset query result: ", raw_private_value)
     print("Time taken (s): ", raw_eps_time_used)
 
-    snipped_df = spark_df.orderBy(rand()).limit(
-        spark_df.count()-1).exceptAll(spark_df.orderBy(rand()).limit(1))
+    # dropping a row of in the dataset
+    indexed_rdd = spark_df.rdd.zipWithIndex()  # add an index to each element
+    index_to_drop = indexed_rdd.takeSample(
+        False, 1)[0][1]
+    snipped_df = indexed_rdd.filter(lambda x: x[1] != index_to_drop).map(
+        lambda x: x[0]).toDF()
 
     print("Dropped a row, current total number of rows in snipped dataset: ",
           snipped_df.count())
     print("Running differential privacy on snipped dataset...")
 
     snipped_private_value, snipped_eps_time_used = _decide_query(
-        snipped_df, session, query, epsilon)
+        snipped_df, session, query, epsilon, column_name)
 
     print("Snipped dataset query result: ", snipped_private_value)
     print("Time taken (s): ", snipped_eps_time_used)

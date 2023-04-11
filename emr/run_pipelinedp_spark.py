@@ -54,6 +54,38 @@ def _compute_dp_metric(rows: list,
     return dp_result
 
 
+def _decide_query(rdd, backend, query, epsilon):
+    #----------------------------------------#
+    # Compute differentially private queries #
+    #----------------------------------------#
+    if query == Query.COUNT.value:
+        begin_time = time.time()
+        dp_result = _compute_dp_metric(
+            rdd, epsilon, pipeline_dp.Metrics.COUNT, backend)
+    else:
+        min_value = rdd.min()
+        max_value = rdd.max()
+
+        if query == Query.MEAN.value:
+            begin_time = time.time()
+            dp_result = _compute_dp_metric(rdd, epsilon, pipeline_dp.Metrics.MEAN,
+                                           backend, min_value, max_value)
+        elif query == Query.SUM.value:
+            begin_time = time.time()
+            dp_result = _compute_dp_metric(rdd, epsilon, pipeline_dp.Metrics.SUM,
+                                           backend, min_value, max_value)
+        elif query == Query.VARIANCE.value:
+            begin_time = time.time()
+            dp_result = _compute_dp_metric(rdd, epsilon, pipeline_dp.Metrics.VARIANCE,
+                                           backend, min_value, max_value)
+
+    private_value = dp_result.collect()[0][1][0]
+    # compute execution time
+    eps_time_used = time.time() - begin_time
+
+    return private_value, eps_time_used
+
+
 def get_spark_context():
     """"""
     # run on spark
@@ -90,45 +122,33 @@ def run_pipelinedp_query(query, epsilon, s3_file_path, column_name):
 
     # remove header row from computation
     rdd = rdd.filter(lambda line: line != header)
-    rows = rdd.map(lambda row: row.split(",")[target_col_index]).map(float)
+    raw_rdd = rdd.map(lambda row: row.split(",")[target_col_index]).map(float)
 
-    num_rows = rows.count()
-    print("Total number of rows in dataset ", num_rows)
+    print("Total number of rows in dataset: ", raw_rdd.count())
+    print("True mean value: ", raw_rdd.mean())
 
-    begin_time = time.time()
+    raw_private_value, raw_eps_time_used = _decide_query(
+        raw_rdd, backend, query, epsilon)
 
-    #----------------------------------------#
-    # Compute differentially private queries #
-    #----------------------------------------#
-    if query == Query.COUNT.value:
-        begin_time = time.time()
-        dp_result = _compute_dp_metric(
-            rows, epsilon, pipeline_dp.Metrics.COUNT, backend)
-    else:
-        min_value = rows.min()
-        max_value = rows.max()
+    print("Dataset query result: ", raw_private_value)
+    print("Time taken (s): ", raw_eps_time_used)
 
-        if query == Query.MEAN.value:
-            begin_time = time.time()
-            print("epsilon:", epsilon)
-            dp_result = _compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.MEAN,
-                                           backend, min_value, max_value)
-        elif query == Query.SUM.value:
-            begin_time = time.time()
-            dp_result = _compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.SUM,
-                                           backend, min_value, max_value)
-        elif query == Query.VARIANCE.value:
-            begin_time = time.time()
-            dp_result = _compute_dp_metric(rows, epsilon, pipeline_dp.Metrics.VARIANCE,
-                                           backend, min_value, max_value)
+    # dropping a row of in the dataset
+    indexed_rdd = raw_rdd.zipWithIndex()  # add an index to each element
+    index_to_drop = indexed_rdd.takeSample(
+        False, 1)[0][1]
+    snipped_rdd = indexed_rdd.filter(lambda x: x[1] != index_to_drop).map(
+        lambda x: x[0])
 
-    private_value = dp_result.collect()[0][1][0]
+    print("Dropped a row, current total number of rows in snipped dataset: ",
+          snipped_rdd.count())
+    print("Running differential privacy on snipped dataset...")
 
-    # compute execution time
-    eps_time_used = time.time() - begin_time
+    snipped_private_value, snipped_eps_time_used = _decide_query(
+        snipped_rdd, backend, query, epsilon)
 
-    print("Dataset query result: ", private_value)
-    print("Time taken (s): ", eps_time_used)
+    print("Snipped dataset query result: ", snipped_private_value)
+    print("Time taken (s): ", snipped_eps_time_used)
 
     sc.stop()
 

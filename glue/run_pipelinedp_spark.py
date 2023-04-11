@@ -68,7 +68,6 @@ def _decide_query(rdd, backend, query, epsilon):
 
         if query == Query.MEAN.value:
             begin_time = time.time()
-            print("epsilon:", epsilon)
             dp_result = _compute_dp_metric(rdd, epsilon, pipeline_dp.Metrics.MEAN,
                                            backend, min_value, max_value)
         elif query == Query.SUM.value:
@@ -125,8 +124,8 @@ def run_pipelinedp_query(query, epsilon, s3_file_path, column_name):
     rdd = rdd.filter(lambda line: line != header)
     raw_rdd = rdd.map(lambda row: row.split(",")[target_col_index]).map(float)
 
-    num_rows = raw_rdd.count()
-    print("Total number of rows in dataset: ", num_rows)
+    print("Total number of rows in dataset: ", raw_rdd.count())
+    print("True mean value: ", raw_rdd.mean())
 
     raw_private_value, raw_eps_time_used = _decide_query(
         raw_rdd, backend, query, epsilon)
