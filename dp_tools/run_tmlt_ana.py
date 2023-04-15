@@ -85,6 +85,11 @@ def run_query(query: str,
                     begin_time = time.time()
                     query_build = QueryBuilder(SOURCE_ID).count()
                 else:
+                    # we default the clamping bounds as the min and max values 
+                    # for our experimental setting. 
+                    # Note: unknown (non-public) min and max values should be 
+                    # computed in private manner (with privacy budget spending)
+                    # or estimated.  
                     min_value = spark_df.agg(
                         {DEFAULT_COLUMN_NAME: "min"}).first()[0]
                     max_value = spark_df.agg(
