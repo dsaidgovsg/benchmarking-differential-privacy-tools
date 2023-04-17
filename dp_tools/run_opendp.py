@@ -95,7 +95,11 @@ def run_query(query: str,
                     private_value = computation_chain(data_list)
 
                 else:
-
+                    # we default the clamping bounds as the min and max values 
+                    # for our experimental setting. 
+                    # Note: unknown (non-public) min and max values should be 
+                    # computed in private manner (with privacy budget spending)
+                    # or estimated.  
                     min_value = data.min()
                     max_value = data.max()
 

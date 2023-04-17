@@ -47,3 +47,8 @@ This git repository is also referenced by our four-part differential privacy art
     |- emr/  - EMR differential privacy examples
     ```
 
+## Contributors 
+- @anshu-gt (anshu@dsaid.gov.sg)
+- @syah-ri (syahri@dsaid.gov.sg)
+
+:muscle: by DSAID Data Privacy Protection Capability Centre (DPPCC) of GovTech

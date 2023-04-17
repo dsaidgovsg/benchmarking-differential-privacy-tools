@@ -123,6 +123,11 @@ def run_query(query: str,
                     dp_result = _compute_dp_metric(
                         rows, epsilon, pipeline_dp.Metrics.COUNT, backend)
                 else:
+                    # we default the clamping bounds as the min and max values 
+                    # for our experimental setting. 
+                    # Note: unknown (non-public) min and max values should be 
+                    # computed in private manner (with privacy budget spending)
+                    # or estimated.  
                     min_value = rows.min()
                     max_value = rows.max()
 
